@@ -953,7 +953,8 @@ function quickAdd(){
 
 // ══════ IMPORT/EXPORT ══════
 function exportJSON(){
-  const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const payload={apps:data,checkins:loadCI()};
+  const b=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);
   a.download=`closed-test-tracker-${todayStr()}.json`;a.click();
   toast('Exported!','ok');
@@ -964,10 +965,20 @@ function importJSON(evt){
   r.onload=e=>{
     try{
       const imp=JSON.parse(e.target.result);
-      if(!Array.isArray(imp))throw new Error();
+      let apps,checkins;
+      if(Array.isArray(imp)){apps=imp;checkins={};}
+      else if(imp&&Array.isArray(imp.apps)){apps=imp.apps;checkins=imp.checkins||{};}
+      else throw new Error();
       const ex=new Set(data.map(d=>d.id));let added=0;
-      imp.forEach(entry=>{if(!ex.has(entry.id)){data.push(entry);added++;}});
-      save();renderAll();toast(`Imported ${added} entr${added===1?'y':'ies'}`,'ok');
+      apps.forEach(entry=>{if(!ex.has(entry.id)){data.push(entry);added++;}});
+      save();
+      const ci=loadCI();
+      for(const[id,dates]of Object.entries(checkins)){
+        if(!ci[id])ci[id]={};
+        Object.assign(ci[id],dates);
+      }
+      saveCI(ci);
+      renderAll();toast(`Imported ${added} entr${added===1?'y':'ies'}`,'ok');
     }catch{toast('Invalid JSON file','err');}
   };
   r.readAsText(file);evt.target.value='';
