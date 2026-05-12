@@ -489,10 +489,29 @@ let data=[], editId=null, lastParsed={}, delTargetId=null;
 const SK='ctt_v3', CK='ctt_ci', SETK='ctt_settings';
 
 function load(){
-  try{data=JSON.parse(localStorage.getItem(SK)||'[]');}catch{data=[];}
+  try{
+    const raw=JSON.parse(localStorage.getItem(SK)||'[]');
+    if(Array.isArray(raw)){
+      data=raw;
+    } else if(raw&&Array.isArray(raw.apps)){
+      data=raw.apps;
+      if(raw.checkins){
+        const ci=loadCI();
+        for(const[id,dates] of Object.entries(raw.checkins)){
+          if(!ci[id])ci[id]={};
+          Object.assign(ci[id],dates);
+        }
+        saveCI(ci);
+      }
+    } else {
+      data=[];
+    }
+  }catch{data=[];}
   if(!data.length){
     try{const o=JSON.parse(localStorage.getItem('ctt_v2')||localStorage.getItem('ctt_data')||'[]');if(o.length){data=o;save();}}catch{}
   }
+  console.log('[CTT] localStorage raw:', localStorage.getItem(SK));
+  console.log('[CTT] data after load:', data);
 }
 function save(){localStorage.setItem(SK,JSON.stringify(data));}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
