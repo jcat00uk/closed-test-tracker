@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Closed Test Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0c0f;--surface:#16161c;--surface2:#1e1e27;--border:#2a2a38;--border2:#38384a;
+  --accent:#6ee7b7;--accent-dim:rgba(110,231,183,.13);--accent-dim2:rgba(110,231,183,.06);
+  --text:#e4e4f0;--text2:#8888a4;--text3:#52526a;
+  --danger:#f87171;--danger-dim:rgba(248,113,113,.12);
+  --warn:#fbbf24;--warn-dim:rgba(251,191,36,.1);
+  --blue:#60a5fa;--purple:#a78bfa;
+  --radius:7px;--radius-lg:11px;
+  --fh:'Syne',sans-serif;--fm:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--fm);font-size:13px;min-height:100vh;}
+::selection{background:var(--accent-dim);color:var(--accent);}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* HEADER */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:200;}
+.brand{font-family:var(--fh);font-size:16px;font-weight:800;color:var(--accent);letter-spacing:-.5px;white-space:nowrap;}
+.brand em{color:var(--text3);font-weight:400;font-size:11px;font-family:var(--fm);font-style:normal;margin-left:3px;}
+.hdr-stats{display:flex;gap:6px;flex-wrap:wrap;}
+.stat{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;}
+.stat .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);}
+.stat .dot.w{background:var(--warn);}
+.stat .dot.off{background:var(--text3);}
+.hdr-btns{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;align-items:center;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--radius);border:1px solid var(--border2);background:transparent;color:var(--text);font-family:var(--fm);font-size:12px;cursor:pointer;transition:all .13s;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim2);}
+.btn-p{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+.btn-p:hover{background:var(--accent);color:var(--bg);}
+.btn-d{border-color:var(--danger);color:var(--danger);}
+.btn-d:hover{background:var(--danger-dim);}
+.btn-sm{padding:3px 8px;font-size:11px;}
+.btn-ic{padding:5px 7px;}
+svg.ic{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+
+/* MAIN */
+.main{max-width:1500px;margin:0 auto;padding:18px 20px;}
+
+/* QA BAR */
+.qabar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:15px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.qabar-lbl{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;}
+.qabar-hint{font-size:11px;color:var(--text3);width:100%;padding-top:1px;}
+
+/* CONTROLS */
+.controls{display:flex;gap:8px;align-items:center;margin-bottom:15px;flex-wrap:wrap;}
+.sw{position:relative;flex:1;min-width:180px;}
+.sw input{width:100%;padding-left:30px;}
+.sw .sic{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;}
+select{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;color:var(--text);font-family:var(--fm);font-size:12px;outline:none;cursor:pointer;}
+select:focus{border-color:var(--accent);}
+
+/* INPUTS */
+input[type="text"],input[type="url"],input[type="date"],textarea{
+  width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:7px 10px;color:var(--text);font-family:var(--fm);font-size:13px;outline:none;transition:border-color .13s;
+}
+input:focus,textarea:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:70px;}
+
+/* SECTION */
+.sec-head{display:flex;align-items:center;gap:9px;margin:22px 0 11px;}
+.sec-head h2{font-family:var(--fh);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text2);white-space:nowrap;}
+.sc{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:1px 9px;font-size:11px;color:var(--text3);}
+.sec-head .ln{flex:1;height:1px;background:var(--border);}
+
+/* TABLE */
+.tw{overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;min-width:900px;}
+thead tr{background:var(--surface);border-bottom:1px solid var(--border);}
+th{padding:8px 11px;text-align:left;font-size:10px;color:var(--text3);font-weight:500;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;cursor:pointer;user-select:none;vertical-align:middle;}
+th:hover{color:var(--text2);}
+tbody tr{border-bottom:1px solid var(--border);background:var(--surface);}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr.dr{opacity:.48;}
+td{padding:9px 11px;vertical-align:middle;}
+.nc{color:var(--text3);font-size:11px;width:30px;text-align:right;padding-right:5px;}
+.ac .an{font-weight:500;font-size:13px;line-height:1.3;}
+.ac .as{font-size:11px;color:var(--text3);margin-top:2px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.uc a{color:var(--blue);text-decoration:none;font-size:12px;}
+.uc a:hover{text-decoration:underline;}
+.lc{display:flex;gap:4px;flex-wrap:nowrap;}
+.lb{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:11px;text-decoration:none;border:1px solid;white-space:nowrap;transition:opacity .1s;}
+.lb:hover{opacity:.75;}
+.lb-r{color:#ff6b35;border-color:rgba(255,107,53,.3);background:rgba(255,107,53,.07);}
+.lb-g{color:var(--warn);border-color:rgba(251,191,36,.3);background:var(--warn-dim);}
+.lb-p{color:var(--accent);border-color:rgba(110,231,183,.3);background:var(--accent-dim2);}
+.dc{color:var(--text2);white-space:nowrap;font-size:12px;}
+.db{display:inline-block;margin-left:4px;font-size:10px;padding:1px 5px;border-radius:3px;}
+.db-w{color:var(--warn);background:var(--warn-dim);}
+.db-ok{color:var(--accent);background:var(--accent-dim2);}
+
+/* DAILY DOTS */
+.dw{display:flex;gap:3px;align-items:center;}
+.dd{width:21px;height:21px;border-radius:4px;border:1.5px solid var(--border2);background:transparent;display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;transition:all .12s;flex-shrink:0;}
+.dd.past{cursor:default;}
+.dd.future{cursor:default;opacity:.3;}
+.dd.can{cursor:pointer;}
+.dd.can:hover{border-color:var(--accent);}
+.dd.on{background:var(--accent);border-color:var(--accent);color:var(--bg);}
+.dd.today-ring{box-shadow:0 0 0 2px var(--accent);}
+.dd.today-ring.on{box-shadow:none;}
+
+/* CHK */
+.chk{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;appearance:none;transition:all .12s;flex-shrink:0;}
+.chk:checked{background:var(--accent);border-color:var(--accent);}
+.chk.pub:checked{background:var(--purple);border-color:var(--purple);}
+.cc{display:flex;justify-content:center;}
+
+/* DUPE */
+.dupe{background:var(--warn-dim);border:1px solid rgba(251,191,36,.35);border-radius:var(--radius);padding:7px 11px;font-size:12px;color:var(--warn);display:none;}
+.dupe.show{display:block;}
+
+/* PARSE PANEL */
+.pt{display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 11px;border-radius:var(--radius);border:1px dashed var(--border2);color:var(--text3);font-size:12px;transition:all .13s;user-select:none;}
+.pt:hover,.pt.on{border-color:var(--accent);color:var(--accent);background:var(--accent-dim2);}
+.pt .arr{transition:transform .17s;}
+.pt.on .arr{transform:rotate(90deg);}
+.pp{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-top:6px;}
+.pp.open{display:block;}
+.pp textarea{font-size:12px;min-height:88px;background:var(--bg);}
+.prs{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+.prr{display:flex;align-items:center;gap:8px;font-size:12px;}
+.prk{color:var(--text3);min-width:86px;flex-shrink:0;}
+.prv{color:var(--accent);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pra{display:flex;gap:7px;margin-top:9px;}
+.ph{font-size:11px;color:var(--text3);margin-top:5px;}
+
+/* MODAL */
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;align-items:center;justify-content:center;padding:16px;}
+.mbg.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);width:100%;max-width:620px;max-height:92vh;overflow-y:auto;}
+.modal.sm{max-width:400px;}
+.modal.lg{max-width:730px;}
+.mh{padding:14px 16px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:2;}
+.mh h3{font-family:var(--fh);font-size:15px;font-weight:700;}
+.mb{padding:16px;display:flex;flex-direction:column;gap:12px;}
+.mf{padding:11px 16px;border-top:1px solid var(--border);display:flex;gap:7px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface);}
+.fl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.cl{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);}
+
+/* SHARE */
+.sfg{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.sfr{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);padding:3px 0;}
+.div{height:1px;background:var(--border);margin:2px 0;}
+.al{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;}
+.asr{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 8px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);}
+.asr .an{flex:1;color:var(--text);}
+.sp{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:11px;font-size:12px;line-height:1.85;color:var(--text2);white-space:pre-wrap;word-break:break-all;max-height:210px;overflow-y:auto;}
+.sr{display:flex;gap:7px;padding-bottom:5px;}
+
+/* DAILY MODAL */
+.dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px;}
+.dcard{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:7px;transition:border-color .13s;}
+.dcard.all-on{border-color:rgba(110,231,183,.35);}
+.dcard .dn{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dcard .dd-row{display:flex;gap:3px;flex-wrap:nowrap;}
+.dcard .ds{font-size:10px;color:var(--text3);}
+.dcard .ds.done{color:var(--accent);}
+.leg{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:4px;}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);}
+.ld{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
+
+/* SETTINGS MODAL */
+.sg{display:flex;flex-direction:column;gap:12px;}
+
+/* TOAST */
+.tray{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:6px;z-index:3000;}
+.toast{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 13px;font-size:12px;color:var(--text);animation:tup .15s ease;display:flex;align-items:center;gap:6px;}
+.toast.ok{border-color:var(--accent);color:var(--accent);}
+.toast.err{border-color:var(--danger);color:var(--danger);}
+@keyframes tup{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+.empty{padding:34px;text-align:center;color:var(--text3);background:var(--surface);border-radius:var(--radius-lg);border:1px dashed var(--border);}
+.empty p{margin-top:5px;font-size:12px;}
+
+@media(max-width:640px){
+  .hdr{padding:10px 13px;}
+  .main{padding:11px 13px;}
+  .fr{grid-template-columns:1fr;}
+  .sfg{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="brand">ClosedTestTracker <em>// android</em></div>
+  <div class="hdr-stats" id="hdrStats"></div>
+  <div class="hdr-btns">
+    <button class="btn" onclick="openDailyModal()">
+      <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+      Daily Check-in
+    </button>
+    <button class="btn" onclick="openShareModal()">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share List
+    </button>
+    <button class="btn" onclick="openSettingsModal()">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      My App
+    </button>
+    <button class="btn" onclick="exportJSON()">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Export
+    </button>
+    <label class="btn" style="cursor:pointer;">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      Import
+      <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+    </label>
+    <button class="btn btn-p" onclick="openAddModal()">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Add App
+    </button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="qabar">
+    <span class="qabar-lbl">Quick Add</span>
+    <input type="url" id="qaUrl" placeholder="Paste Reddit post URL → pre-fills form" style="flex:1;min-width:180px;">
+    <button class="btn btn-p" onclick="quickAdd()">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Open Form
+    </button>
+    <span class="qabar-hint">Tip: use "Paste post text" inside the form to auto-extract links, username and app name.</span>
+  </div>
+
+  <div class="controls">
+    <div class="sw">
+      <svg class="ic sic" viewBox="0 0 24 24" style="width:12px;height:12px;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="srch" placeholder="Search app, username, notes..." oninput="renderAll()">
+    </div>
+    <select id="sortSel" onchange="renderAll()">
+      <option value="dateDesc">Date installed ↓</option>
+      <option value="dateAsc">Date installed ↑</option>
+      <option value="nameAsc">App name A–Z</option>
+      <option value="nameDesc">App name Z–A</option>
+      <option value="userAsc">Username A–Z</option>
+      <option value="myApp">My app unchecked first</option>
+    </select>
+  </div>
+
+  <div class="sec-head">
+    <h2>Active Tests</h2>
+    <div class="sc" id="aCnt">0</div>
+    <div class="ln"></div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr>
+        <th class="nc">#</th>
+        <th onclick="cs('name')">App Name</th>
+        <th onclick="cs('user')">Reddit User</th>
+        <th>Links</th>
+        <th onclick="cs('date')">Installed</th>
+        <th title="Daily opens — last 7 days. Today has a ring. Only today is clickable.">Daily opens (7d →today)</th>
+        <th>My App</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody id="aBody"></tbody>
+    </table>
+  </div>
+
+  <div class="sec-head" style="margin-top:32px;">
+    <h2>Published / Completed</h2>
+    <div class="sc" id="dCnt">0</div>
+    <div class="ln"></div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr>
+        <th class="nc">#</th>
+        <th>App Name</th>
+        <th>Reddit User</th>
+        <th>Links</th>
+        <th>Installed</th>
+        <th>Daily opens (7d →today)</th>
+        <th>My App</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody id="dBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="mbg" id="editModal">
+ <div class="modal">
+  <div class="mh">
+    <h3 id="mTitle">Add App</h3>
+    <button class="btn btn-ic" onclick="closeModal('editModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb">
+    <input type="hidden" id="eId">
+    <div class="dupe" id="dupeWarn"></div>
+
+    <!-- Parse panel -->
+    <div>
+      <div class="pt" id="parseToggle" onclick="toggleParse()">
+        <svg class="ic arr" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        Paste post text to auto-extract links &amp; username
+      </div>
+      <div class="pp" id="parsePanel">
+        <div class="fl" style="margin-bottom:5px;">Paste the Reddit post text below</div>
+        <textarea id="parseInput" placeholder="Paste post body here — extracts Google Group, Play Store, app name, username (supports markdown link format and time-ago username pattern)..." oninput="liveParsePost()"></textarea>
+        <div class="prs" id="prResults"></div>
+        <div class="pra">
+          <button class="btn btn-p btn-sm" onclick="applyParsed()">Apply to form</button>
+          <button class="btn btn-sm" onclick="clearParse()">Clear</button>
+        </div>
+        <div class="ph">Only fills empty fields — won't overwrite what you've already typed.</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="fl">App Name *</div>
+      <input type="text" id="fName" placeholder="e.g. Unsayable" oninput="checkDupe()">
+    </div>
+    <div class="fr">
+      <div>
+        <div class="fl">Reddit Username</div>
+        <input type="text" id="fUser" placeholder="u/username">
+      </div>
+      <div>
+        <div class="fl">Date Installed</div>
+        <input type="date" id="fDate">
+      </div>
+    </div>
+    <div>
+      <div class="fl">Reddit Post URL</div>
+      <input type="url" id="fReddit" placeholder="https://reddit.com/r/AndroidClosedTesting/..." oninput="checkDupe()">
+    </div>
+    <div>
+      <div class="fl">Google Groups Link</div>
+      <input type="url" id="fGoogle" placeholder="https://groups.google.com/g/..." oninput="checkDupe()">
+    </div>
+    <div>
+      <div class="fl">Play Store Link</div>
+      <input type="url" id="fPlay" placeholder="https://play.google.com/store/apps/..." oninput="checkDupe()">
+    </div>
+    <div>
+      <div class="fl">Comments / Notes</div>
+      <textarea id="fNotes" placeholder="Bugs, feedback, screenshot URLs..."></textarea>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <label class="cl"><input type="checkbox" class="chk" id="fMyApp"> They installed my app</label>
+      <label class="cl"><input type="checkbox" class="chk pub" id="fPublished"> Published / done</label>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('editModal')">Cancel</button>
+    <button class="btn btn-p" onclick="saveEntry()">Save</button>
+  </div>
+ </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="mbg" id="delModal">
+ <div class="modal sm">
+  <div class="mh">
+    <h3>Delete entry?</h3>
+    <button class="btn btn-ic" onclick="closeModal('delModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb">
+    <p style="color:var(--text2);line-height:1.6">Delete <strong id="delName" style="color:var(--text)"></strong>? This cannot be undone.</p>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('delModal')">Cancel</button>
+    <button class="btn btn-d" id="delBtn">Delete</button>
+  </div>
+ </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="mbg" id="shareModal">
+ <div class="modal lg">
+  <div class="mh">
+    <h3>Share Testing List</h3>
+    <button class="btn btn-ic" onclick="closeModal('shareModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb">
+    <div>
+      <div class="fl" style="margin-bottom:7px;">Fields to include</div>
+      <div class="sfg" id="sfGrid"></div>
+    </div>
+    <div class="div"></div>
+    <div>
+      <div class="fl" style="margin-bottom:6px;">Apps to include</div>
+      <div class="sr">
+        <button class="btn btn-sm" onclick="shareSelAll(true)">Select all</button>
+        <button class="btn btn-sm" onclick="shareSelAll(false)">None</button>
+      </div>
+      <div class="al" id="appsList"></div>
+    </div>
+    <div class="div"></div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div class="fl" style="margin-bottom:0;">Preview</div>
+        <button class="btn btn-sm" onclick="refreshPreview()">Refresh</button>
+      </div>
+      <div class="sp" id="sharePreview">Click Refresh to generate...</div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('shareModal')">Close</button>
+    <button class="btn btn-p" onclick="copyShare()">
+      <svg class="ic" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copy
+    </button>
+  </div>
+ </div>
+</div>
+
+<!-- DAILY MODAL -->
+<div class="mbg" id="dailyModal">
+ <div class="modal lg">
+  <div class="mh">
+    <h3>Daily Check-in</h3>
+    <button class="btn btn-ic" onclick="closeModal('dailyModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb">
+    <p style="font-size:12px;color:var(--text2);">Tick each app after you've opened it today. Only today's dot (rightmost, with ring) is clickable — past days are your history.</p>
+    <div class="dg" id="dailyGrid"></div>
+    <div class="leg">
+      <div class="li"><div class="ld" style="background:var(--accent)"></div>Opened</div>
+      <div class="li"><div class="ld" style="border:1.5px solid var(--border2)"></div>Not opened</div>
+      <div class="li"><div class="ld" style="border:1.5px solid var(--border2);box-shadow:0 0 0 2px var(--accent)"></div>Today</div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-p" onclick="checkInAll()">Tick All Today</button>
+    <button class="btn" onclick="closeModal('dailyModal')">Done</button>
+  </div>
+ </div>
+</div>
+
+<!-- SETTINGS / MY APP MODAL -->
+<div class="mbg" id="settingsModal">
+ <div class="modal sm">
+  <div class="mh">
+    <h3>My App Links</h3>
+    <button class="btn btn-ic" onclick="closeModal('settingsModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb">
+    <p style="font-size:12px;color:var(--text2);line-height:1.6;">These are appended to your Share List so others know what app you're offering to test in return.</p>
+    <div class="sg">
+      <div>
+        <div class="fl">My Google Group Link</div>
+        <input type="url" id="sMyGroup" placeholder="https://groups.google.com/g/...">
+      </div>
+      <div>
+        <div class="fl">My Play Store Link</div>
+        <input type="url" id="sMyPlay" placeholder="https://play.google.com/store/apps/...">
+      </div>
+      <div>
+        <div class="fl">My Reddit Post URL</div>
+        <input type="url" id="sMyReddit" placeholder="https://reddit.com/r/AndroidClosedTesting/...">
+      </div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('settingsModal')">Cancel</button>
+    <button class="btn btn-p" onclick="saveSettings()">Save</button>
+  </div>
+ </div>
+</div>
+
+<div class="tray" id="tray"></div>
+
+<script>
+// ══════ DATA ══════
+let data=[], editId=null, lastParsed={}, delTargetId=null;
+const SK='ctt_v3', CK='ctt_ci', SETK='ctt_settings';
+
+function load(){
+  try{data=JSON.parse(localStorage.getItem(SK)||'[]');}catch{data=[];}
+  if(!data.length){
+    try{const o=JSON.parse(localStorage.getItem('ctt_v2')||localStorage.getItem('ctt_data')||'[]');if(o.length){data=o;save();}}catch{}
+  }
+}
+function save(){localStorage.setItem(SK,JSON.stringify(data));}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function loadSettings(){try{return JSON.parse(localStorage.getItem(SETK)||'{}');}catch{return{};}}
+function saveSettings(){
+  localStorage.setItem(SETK,JSON.stringify({myGroup:document.getElementById('sMyGroup').value.trim(),myPlay:document.getElementById('sMyPlay').value.trim(),myReddit:document.getElementById('sMyReddit').value.trim()}));
+  closeModal('settingsModal');toast('Settings saved','ok');
+}
+function openSettingsModal(){
+  const s=loadSettings();
+  document.getElementById('sMyGroup').value=s.myGroup||'';
+  document.getElementById('sMyPlay').value=s.myPlay||'';
+  document.getElementById('sMyReddit').value=s.myReddit||'';
+  openModal('settingsModal');
+}
+
+// ══════ CHECK-INS ══════
+function loadCI(){try{return JSON.parse(localStorage.getItem(CK)||'{}');}catch{return{};}}
+function saveCI(c){localStorage.setItem(CK,JSON.stringify(c));}
+function todayStr(){return new Date().toISOString().split('T')[0];}
+function last7(){
+  const d=[];
+  for(let i=6;i>=0;i--){const t=new Date();t.setDate(t.getDate()-i);d.push(t.toISOString().split('T')[0]);}
+  return d;
+}
+function isCI(id,date){const c=loadCI();return !!(c[id]&&c[id][date]);}
+function toggleCI(id,date){
+  if(date!==todayStr())return;
+  const c=loadCI();
+  if(!c[id])c[id]={};
+  if(c[id][date])delete c[id][date];else c[id][date]=true;
+  saveCI(c);renderAll();renderDailyGrid();
+}
+function todayCount(){const t=todayStr(),c=loadCI();return data.filter(d=>!d.published&&c[d.id]&&c[d.id][t]).length;}
+
+// ══════ SORT ══════
+function cs(field){
+  const sel=document.getElementById('sortSel');
+  const cur=sel.value;
+  const map={name:['nameAsc','nameDesc'],user:['userAsc','userAsc'],date:['dateAsc','dateDesc']};
+  if(map[field]){sel.value=(cur===map[field][0])?map[field][1]:map[field][0];}
+  renderAll();
+}
+function sorted(arr){
+  const s=document.getElementById('sortSel').value, cp=[...arr];
+  if(s==='nameAsc')cp.sort((a,b)=>(a.appName||'').localeCompare(b.appName||''));
+  else if(s==='nameDesc')cp.sort((a,b)=>(b.appName||'').localeCompare(a.appName||''));
+  else if(s==='userAsc')cp.sort((a,b)=>(a.redditUser||'').localeCompare(b.redditUser||''));
+  else if(s==='dateAsc')cp.sort((a,b)=>(a.dateInstalled||'').localeCompare(b.dateInstalled||''));
+  else if(s==='dateDesc')cp.sort((a,b)=>(b.dateInstalled||'').localeCompare(a.dateInstalled||''));
+  else if(s==='myApp')cp.sort((a,b)=>(a.myApp?1:0)-(b.myApp?1:0));
+  return cp;
+}
+
+// ══════ RENDER ══════
+function fmtDate(d){
+  if(!d)return'—';
+  const[y,m,day]=d.split('-');
+  return`${parseInt(day)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]} ${y}`;
+}
+function daysSince(d){return d?Math.floor((Date.now()-new Date(d))/86400000):null;}
+
+function renderAll(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  let active=data.filter(d=>!d.published), done=data.filter(d=>d.published);
+  if(q){
+    const f=arr=>arr.filter(d=>(d.appName||'').toLowerCase().includes(q)||(d.redditUser||'').toLowerCase().includes(q)||(d.notes||'').toLowerCase().includes(q));
+    active=f(active);done=f(done);
+  }
+  document.getElementById('aCnt').textContent=active.length;
+  document.getElementById('dCnt').textContent=done.length;
+  renderTbody('aBody',sorted(active),false);
+  renderTbody('dBody',sorted(done),true);
+  renderHeader();
+}
+
+function renderHeader(){
+  const active=data.filter(d=>!d.published);
+  const tc=todayCount(), tot=active.length;
+  document.getElementById('hdrStats').innerHTML=`
+    <div class="stat"><div class="dot"></div>${tot} active</div>
+    <div class="stat"><div class="dot ${tc<tot?'w':''}"></div>${tc}/${tot} today</div>
+    <div class="stat"><div class="dot off"></div>${data.filter(d=>d.published).length} done</div>
+    <div class="stat"><div class="dot"></div>${active.filter(d=>d.myApp).length} my app installed</div>`;
+}
+
+function renderTbody(id,rows,isDone){
+  const tb=document.getElementById(id);
+  if(!rows.length){
+    tb.innerHTML=`<tr><td colspan="8"><div class="empty">No entries<p>${isDone?'Completed apps appear here':'Add an app to start tracking'}</p></div></td></tr>`;
+    return;
+  }
+  const d7=last7(), today=todayStr();
+  tb.innerHTML=rows.map((row,i)=>{
+    const days=daysSince(row.dateInstalled);
+    const dbadge=days!==null?(days>=14?`<span class="db db-ok">✓${days}d</span>`:`<span class="db db-w">${days}/14d</span>`):'';
+    const links=[
+      row.redditPost?`<a href="${esc(row.redditPost)}" target="_blank" class="lb lb-r">reddit</a>`:'',
+      row.googleGroup?`<a href="${esc(row.googleGroup)}" target="_blank" class="lb lb-g">group</a>`:'',
+      row.playStore?`<a href="${esc(row.playStore)}" target="_blank" class="lb lb-p">play</a>`:'',
+    ].filter(Boolean).join('')||'<span style="color:var(--text3);font-size:11px">—</span>';
+    const userHtml=row.redditUser
+      ?`<a href="https://reddit.com/user/${encodeURIComponent(row.redditUser.replace(/^u\//,''))}" target="_blank">${esc(row.redditUser)}</a>`
+      :'<span style="color:var(--text3)">—</span>';
+    const dots=d7.map(d=>{
+      const on=isCI(row.id,d), isToday=d===today;
+      let cls='dd';
+      if(isToday){cls+=' can today-ring'+(on?' on':'');}
+      else{cls+=' past'+(on?' on':'');}
+      return`<div class="${cls}" title="${d}${isToday?' · today (click to toggle)':''}" ${isToday?`onclick="toggleCI('${row.id}','${d}')"`:''}>${on?'✓':''}</div>`;
+    }).join('');
+    return`<tr class="${isDone?'dr':''}">
+      <td class="nc">${i+1}</td>
+      <td class="ac"><div class="an">${esc(row.appName||'Unnamed')}</div>${row.notes?`<div class="as">${esc(row.notes)}</div>`:''}</td>
+      <td class="uc">${userHtml}</td>
+      <td><div class="lc">${links}</div></td>
+      <td class="dc">${fmtDate(row.dateInstalled)}${dbadge}</td>
+      <td><div class="dw">${dots}</div></td>
+      <td class="cc"><input type="checkbox" class="chk" ${row.myApp?'checked':''} onchange="toggleField('${row.id}','myApp',this.checked)"></td>
+      <td><div style="display:flex;gap:4px;align-items:center;">
+        <button class="btn btn-sm" onclick="openEditModal('${row.id}')" title="Edit"><svg class="ic" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg></button>
+        <button class="btn btn-sm" onclick="toggleField('${row.id}','published',${!row.published})" title="${isDone?'Reactivate':'Mark done'}"><svg class="ic" viewBox="0 0 24 24">${isDone?'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>':'<polyline points="20 6 9 17 4 12"/>'}</svg></button>
+        <button class="btn btn-sm btn-d" onclick="confirmDel('${row.id}')" title="Delete"><svg class="ic" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg></button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleField(id,field,val){const e=data.find(d=>d.id===id);if(e){e[field]=val;save();renderAll();}}
+
+// ══════ ADD/EDIT ══════
+function openAddModal(pre={}){
+  editId=null;
+  document.getElementById('mTitle').textContent='Add App';
+  document.getElementById('eId').value='';
+  document.getElementById('fName').value=pre.appName||'';
+  document.getElementById('fUser').value=pre.redditUser||'';
+  document.getElementById('fDate').value=pre.dateInstalled||todayStr();
+  document.getElementById('fReddit').value=pre.redditPost||'';
+  document.getElementById('fGoogle').value=pre.googleGroup||'';
+  document.getElementById('fPlay').value=pre.playStore||'';
+  document.getElementById('fNotes').value=pre.notes||'';
+  document.getElementById('fMyApp').checked=false;
+  document.getElementById('fPublished').checked=false;
+  resetParse();hideDupe();
+  openModal('editModal');
+}
+function openEditModal(id){
+  editId=id;const e=data.find(d=>d.id===id);if(!e)return;
+  document.getElementById('mTitle').textContent='Edit: '+(e.appName||'');
+  document.getElementById('eId').value=id;
+  document.getElementById('fName').value=e.appName||'';
+  document.getElementById('fUser').value=e.redditUser||'';
+  document.getElementById('fDate').value=e.dateInstalled||'';
+  document.getElementById('fReddit').value=e.redditPost||'';
+  document.getElementById('fGoogle').value=e.googleGroup||'';
+  document.getElementById('fPlay').value=e.playStore||'';
+  document.getElementById('fNotes').value=e.notes||'';
+  document.getElementById('fMyApp').checked=!!e.myApp;
+  document.getElementById('fPublished').checked=!!e.published;
+  resetParse();hideDupe();
+  openModal('editModal');
+}
+function saveEntry(){
+  const appName=document.getElementById('fName').value.trim();
+  if(!appName){toast('App name is required','err');return;}
+  const entry={
+    id:editId||genId(),appName,
+    redditUser:document.getElementById('fUser').value.trim(),
+    dateInstalled:document.getElementById('fDate').value,
+    redditPost:document.getElementById('fReddit').value.trim(),
+    googleGroup:document.getElementById('fGoogle').value.trim(),
+    playStore:document.getElementById('fPlay').value.trim(),
+    notes:document.getElementById('fNotes').value.trim(),
+    myApp:document.getElementById('fMyApp').checked,
+    published:document.getElementById('fPublished').checked,
+    createdAt:editId?(data.find(d=>d.id===editId)?.createdAt||Date.now()):Date.now()
+  };
+  if(editId){const i=data.findIndex(d=>d.id===editId);if(i>=0)data[i]=entry;}
+  else data.push(entry);
+  save();renderAll();closeModal('editModal');
+  toast(editId?'Updated':'App added','ok');
+}
+
+// ══════ DUPE CHECK ══════
+function checkDupe(){
+  const name=(document.getElementById('fName').value||'').trim().toLowerCase();
+  const play=(document.getElementById('fPlay').value||'').trim().toLowerCase();
+  const reddit=(document.getElementById('fReddit').value||'').trim().toLowerCase();
+  const group=(document.getElementById('fGoogle').value||'').trim().toLowerCase();
+  const msgs=[];
+  data.filter(d=>d.id!==editId).forEach(d=>{
+    const hits=[];
+    if(name&&(d.appName||'').toLowerCase()===name)hits.push('app name');
+    if(play&&play.length>15&&(d.playStore||'').toLowerCase()===play)hits.push('Play Store link');
+    if(reddit&&reddit.length>20&&(d.redditPost||'').toLowerCase()===reddit)hits.push('Reddit post');
+    if(group&&group.length>20&&(d.googleGroup||'').toLowerCase()===group)hits.push('Google Group');
+    if(hits.length)msgs.push(`"${d.appName}" matches: ${hits.join(', ')}`);
+  });
+  if(msgs.length){
+    document.getElementById('dupeWarn').innerHTML='⚠ Possible duplicate — '+msgs.join(' · ');
+    document.getElementById('dupeWarn').classList.add('show');
+  }else hideDupe();
+}
+function hideDupe(){document.getElementById('dupeWarn').classList.remove('show');}
+
+// ══════ PARSE ══════
+function toggleParse(){
+  const t=document.getElementById('parseToggle'),p=document.getElementById('parsePanel');
+  const o=p.classList.toggle('open');t.classList.toggle('on',o);
+}
+function resetParse(){
+  document.getElementById('parseInput').value='';
+  document.getElementById('prResults').innerHTML='';
+  document.getElementById('parsePanel').classList.remove('open');
+  document.getElementById('parseToggle').classList.remove('on');
+  lastParsed={};
+}
+function clearParse(){document.getElementById('parseInput').value='';document.getElementById('prResults').innerHTML='';lastParsed={};}
+
+function liveParsePost(){
+  const text=document.getElementById('parseInput').value;
+  lastParsed=parsePost(text);
+  const con=document.getElementById('prResults');
+  const fields=[{k:'appName',l:'App name'},{k:'redditUser',l:'Username'},{k:'redditPost',l:'Reddit post'},{k:'googleGroup',l:'Google Group'},{k:'playStore',l:'Play Store'}];
+  const found=fields.filter(f=>lastParsed[f.k]);
+  con.innerHTML=found.length
+    ?found.map(f=>`<div class="prr"><span class="prk">${f.l}</span><span class="prv" title="${esc(lastParsed[f.k])}">${esc(lastParsed[f.k])}</span></div>`).join('')
+    :'<div style="font-size:12px;color:var(--text3);padding-top:4px;">Nothing detected yet...</div>';
+}
+
+function parsePost(text){
+  const r={};
+
+  // ── Google Group (first match) ──
+  const gg=text.match(/https?:\/\/groups\.google\.com\/[^\s<)"'\]]+/i);
+  if(gg)r.googleGroup=gg[0].replace(/[.,;)\]>]+$/,'');
+
+  // ── Play Store — prefer ?id= form, otherwise path form, take first valid ──
+  const psAll=[...text.matchAll(/https?:\/\/(?:play\.google\.com\/store\/apps\/details[?][^\s<)"'\]]*id=|play\.google\.com\/apps\/testing\/)[^\s<)"'\]]*/gi)];
+  if(psAll.length){
+    // pick first that has a real package segment
+    const best=psAll.find(m=>/[a-z][\w.]{3,}/.test(m[0]))||psAll[0];
+    r.playStore=best[0].replace(/[.,;)\]>]+$/,'');
+  }
+  // Also markdown: [label](https://play.google.com/...)
+  if(!r.playStore){
+    const psmd=text.match(/\[[^\]]*\]\((https?:\/\/play\.google\.com\/[^)]+)\)/i);
+    if(psmd)r.playStore=psmd[1];
+  }
+
+  // ── Reddit post URL ──
+  const rd=text.match(/https?:\/\/(www\.)?reddit\.com\/r\/[^\s<)"'\]]+/i);
+  if(rd)r.redditPost=rd[0].replace(/[.,;)\]>]+$/,'');
+
+  // ── Username — priority order ──
+  // 1. Markdown link: [username](https://reddit.com/user/username/)
+  const umd=text.match(/\[([A-Za-z0-9_-]{3,20})\]\(https?:\/\/(www\.)?reddit\.com\/user\/([A-Za-z0-9_-]{3,20})\/?[^)]*\)/i);
+  if(umd){
+    r.redditUser='u/'+umd[3];
+  } else {
+    // 2. Time-ago pattern: line like "2d ago" or "21h ago" or "6h ago" followed by username on next line
+    const timeAgoMatch=text.match(/(?:^|\n)\s*\d+[mhdw]\s+ago\s*\n\s*([A-Za-z0-9_-]{3,20})\s*(?:\n|$)/i);
+    if(timeAgoMatch){
+      r.redditUser='u/'+timeAgoMatch[1].trim();
+    } else {
+      // 3. Plain u/username or /user/username
+      const up=text.match(/(?:^|\s|[\[(])(?:u\/|\/user\/)([A-Za-z0-9_-]{3,20})/m);
+      if(up)r.redditUser='u/'+up[1];
+    }
+  }
+
+  // ── App name — smart extraction from Play Store URL then text ──
+  if(r.playStore){
+    // Get package ID from ?id=... or from path /testing/com.x.y
+    let pkg=null;
+    const idm=r.playStore.match(/[?&]id=([A-Za-z0-9_.]+)/i);
+    if(idm)pkg=idm[1];
+    else{
+      const pathm=r.playStore.match(/\/testing\/([A-Za-z0-9_.]+)/i);
+      if(pathm)pkg=pathm[1];
+    }
+    if(pkg){
+      // Remove common TLD-style prefixes: com. net. org. io. co. uk. de. fr. etc.
+      let stripped=pkg.replace(/^(com|net|org|io|co|uk|de|fr|app|me|tv|ai)\./i,'');
+      // Remove common studio/dev segment if 2+ segments remain
+      const parts=stripped.split('.');
+      // Filter out generic words
+      const generic=new Set(['app','android','test','debug','release','main','mobile','phone','studio','dev','labs','games','game','inc','llc','soft','tech','group','team','pro','lite','free']);
+      const meaningful=parts.filter(p=>p.length>1&&!generic.has(p.toLowerCase()));
+      let name='';
+      if(meaningful.length>=2){
+        // last 2 meaningful segments joined with space
+        name=meaningful.slice(-2).join(' ');
+      }else if(meaningful.length===1){
+        name=meaningful[0];
+      }else{
+        name=parts[parts.length-1];
+      }
+      // split camelCase: "prankCall" → "prank Call", "fanPitch" → "fan Pitch"
+      name=name.replace(/([a-z])([A-Z])/g,'$1 $2');
+      // replace dots/underscores/hyphens with spaces
+      name=name.replace(/[._-]+/g,' ').trim();
+      // capitalise first letter of each word
+      name=name.replace(/\b\w/g,c=>c.toUpperCase());
+      if(name.length>1)r.appName=name;
+    }
+  }
+
+  // Fallback app name from post text
+  if(!r.appName){
+    // Markdown link to reddit post: [Title Here](https://reddit.com/r/...)
+    const tm=text.match(/\[([^\]]{4,80})\]\(https?:\/\/(www\.)?reddit\.com\/r\/[^)]+\)/i);
+    if(tm&&!tm[1].startsWith('r/')&&!tm[1].toLowerCase().startsWith('go to')&&!tm[1].startsWith('['))
+      r.appName=tm[1].trim();
+  }
+  if(!r.appName){
+    // First meaningful line (not a URL, not a short nav link, not "Go to...")
+    const lines=text.split('\n').map(l=>l.trim()).filter(l=>
+      l.length>3&&l.length<90&&
+      !l.match(/^https?:\/\//i)&&
+      !l.match(/^\[Go to/i)&&
+      !l.match(/^\[r\//i)&&
+      !l.match(/^\d+[mhdw]\s+ago/i)&&
+      !l.match(/^u\/[A-Za-z0-9_]/i)
+    );
+    if(lines.length){
+      // strip markdown link syntax if present: [Title](url) → Title
+      let candidate=lines[0].replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/^#+\s*/,'').trim();
+      if(candidate.length>2)r.appName=candidate;
+    }
+  }
+
+  return r;
+}
+
+function applyParsed(){
+  if(!Object.keys(lastParsed).length){toast('Nothing to apply yet','err');return;}
+  const map={appName:'fName',redditUser:'fUser',redditPost:'fReddit',googleGroup:'fGoogle',playStore:'fPlay'};
+  let n=0;
+  for(const[key,fid]of Object.entries(map)){
+    if(lastParsed[key]){const el=document.getElementById(fid);if(!el.value.trim()){el.value=lastParsed[key];n++;}}
+  }
+  checkDupe();
+  toast(n?`Applied ${n} field${n>1?'s':''}`:'Fields already filled — clear them to re-apply','ok');
+}
+
+// ══════ DELETE ══════
+function confirmDel(id){
+  delTargetId=id;
+  const e=data.find(d=>d.id===id);
+  document.getElementById('delName').textContent=e?.appName||'this entry';
+  document.getElementById('delBtn').onclick=()=>{
+    data=data.filter(d=>d.id!==delTargetId);
+    save();renderAll();closeModal('delModal');toast('Deleted','err');
+  };
+  openModal('delModal');
+}
+
+// ══════ SHARE ══════
+const SF=[
+  {k:'appName',l:'App Name',def:true},
+  {k:'redditUser',l:'Reddit User',def:true},
+  {k:'dateInstalled',l:'Date Installed',def:true},
+  {k:'redditPost',l:'Reddit Post URL',def:false},
+  {k:'googleGroup',l:'Google Group URL',def:false},
+  {k:'playStore',l:'Play Store URL',def:false},
+  {k:'notes',l:'Notes',def:false},
+  {k:'myApp',l:'My App Installed?',def:false},
+];
+function openShareModal(){
+  document.getElementById('sfGrid').innerHTML=SF.map(f=>`<label class="sfr"><input type="checkbox" class="chk" id="sf_${f.k}" ${f.def?'checked':''} onchange="refreshPreview()"> ${f.l}</label>`).join('');
+  const active=data.filter(d=>!d.published);
+  document.getElementById('appsList').innerHTML=active.length
+    ?active.map(e=>`<div class="asr"><input type="checkbox" class="chk" id="sa_${e.id}" checked onchange="refreshPreview()"><span class="an">${esc(e.appName||'Unnamed')}</span><span style="font-size:11px;color:var(--text3)">${fmtDate(e.dateInstalled)}</span></div>`).join('')
+    :'<p style="color:var(--text3);font-size:12px">No active apps.</p>';
+  document.getElementById('sharePreview').textContent='Click Refresh to generate...';
+  openModal('shareModal');
+}
+function shareSelAll(v){document.querySelectorAll('[id^="sa_"]').forEach(el=>el.checked=v);refreshPreview();}
+function refreshPreview(){
+  const active=data.filter(d=>!d.published);
+  const sel=active.filter(e=>{const el=document.getElementById('sa_'+e.id);return el&&el.checked;});
+  const fields=SF.filter(f=>{const el=document.getElementById('sf_'+f.k);return el&&el.checked;});
+  if(!sel.length){document.getElementById('sharePreview').textContent='No apps selected.';return;}
+  const lines=[`📱 Currently testing ${sel.length} app${sel.length>1?'s':''}:\n`];
+  sel.forEach((e,i)=>{
+    lines.push(`${i+1}. ${e.appName||'Unnamed'}`);
+    fields.forEach(f=>{
+      if(f.k==='appName')return;
+      if(f.k==='myApp')lines.push(`   My app installed: ${e.myApp?'Yes ✓':'No'}`);
+      else if(f.k==='dateInstalled'&&e.dateInstalled)lines.push(`   Installed: ${fmtDate(e.dateInstalled)}`);
+      else if(e[f.k])lines.push(`   ${f.l.replace(' URL','').replace('?','')}: ${e[f.k]}`);
+    });
+  });
+  // Append "my app" links if set
+  const s=loadSettings();
+  if(s.myGroup||s.myPlay||s.myReddit){
+    lines.push('');
+    lines.push('🔄 Test my app in return:');
+    if(s.myGroup)lines.push(`   Google Group: ${s.myGroup}`);
+    if(s.myPlay)lines.push(`   Play Store: ${s.myPlay}`);
+    if(s.myReddit)lines.push(`   Reddit Post: ${s.myReddit}`);
+  }
+  document.getElementById('sharePreview').textContent=lines.join('\n');
+}
+function copyShare(){
+  refreshPreview();
+  navigator.clipboard.writeText(document.getElementById('sharePreview').textContent).then(()=>toast('Copied!','ok'));
+}
+
+// ══════ DAILY ══════
+function openDailyModal(){renderDailyGrid();openModal('dailyModal');}
+function renderDailyGrid(){
+  const active=data.filter(d=>!d.published);
+  const grid=document.getElementById('dailyGrid');
+  const d7=last7(),today=todayStr();
+  if(!active.length){grid.innerHTML='<p style="color:var(--text3);font-size:12px;">No active apps.</p>';return;}
+  grid.innerHTML=active.map(e=>{
+    const dots=d7.map(d=>{
+      const on=isCI(e.id,d),isToday=d===today;
+      let cls='dd';
+      if(isToday){cls+=' can today-ring'+(on?' on':'');}
+      else{cls+=' past'+(on?' on':'');}
+      return`<div class="${cls}" title="${d}${isToday?' · today':''}" ${isToday?`onclick="toggleCI('${e.id}','${d}');renderDailyGrid()"`:''}>${on?'✓':''}</div>`;
+    }).join('');
+    const done=isCI(e.id,today);
+    return`<div class="dcard${done?' all-on':''}">
+      <div class="dn" title="${esc(e.appName)}">${esc(e.appName||'Unnamed')}</div>
+      <div class="dd-row">${dots}</div>
+      <div class="ds${done?' done':''}">${done?'✓ Done today':'○ Not yet today'}</div>
+    </div>`;
+  }).join('');
+}
+function checkInAll(){
+  const today=todayStr(),c=loadCI();
+  data.filter(d=>!d.published).forEach(e=>{if(!c[e.id])c[e.id]={};c[e.id][today]=true;});
+  saveCI(c);renderAll();renderDailyGrid();
+  toast('All checked in for today!','ok');
+}
+
+// ══════ QUICK ADD ══════
+function quickAdd(){
+  const url=document.getElementById('qaUrl').value.trim(),pre={};
+  if(url){
+    pre.redditPost=url;
+    try{
+      const u=new URL(url),parts=u.pathname.split('/').filter(Boolean);
+      const ui=parts.findIndex(p=>p==='user'||p==='u');
+      if(ui>=0&&parts[ui+1])pre.redditUser='u/'+parts[ui+1];
+    }catch{}
+  }
+  document.getElementById('qaUrl').value='';
+  openAddModal(pre);
+}
+
+// ══════ IMPORT/EXPORT ══════
+function exportJSON(){
+  const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download=`closed-test-tracker-${todayStr()}.json`;a.click();
+  toast('Exported!','ok');
+}
+function importJSON(evt){
+  const file=evt.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const imp=JSON.parse(e.target.result);
+      if(!Array.isArray(imp))throw new Error();
+      const ex=new Set(data.map(d=>d.id));let added=0;
+      imp.forEach(entry=>{if(!ex.has(entry.id)){data.push(entry);added++;}});
+      save();renderAll();toast(`Imported ${added} entr${added===1?'y':'ies'}`,'ok');
+    }catch{toast('Invalid JSON file','err');}
+  };
+  r.readAsText(file);evt.target.value='';
+}
+
+// ══════ MODALS ══════
+// Note: click-away is intentionally disabled — only X / Cancel / Save closes modals
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ══════ TOAST ══════
+function toast(msg,type=''){
+  const t=document.createElement('div');
+  t.className='toast '+(type==='ok'?'ok':type==='err'?'err':'');
+  t.textContent=msg;document.getElementById('tray').appendChild(t);
+  setTimeout(()=>t.remove(),2800);
+}
+
+
+</script>
+</body>
+</html>
