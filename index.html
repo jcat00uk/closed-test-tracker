@@ -6,6 +6,7 @@
 <title>Closed Test Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
   --bg:#0c0c0f;--surface:#16161c;--surface2:#1e1e27;--border:#2a2a38;--border2:#38384a;
@@ -223,6 +224,7 @@ td{padding:9px 11px;vertical-align:middle;}
       Import
       <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
     </label>
+    <div id="syncBtns" style="display:flex;gap:6px;"></div>
     <button class="btn btn-p" onclick="openAddModal()">
       <svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
       Add App
@@ -477,6 +479,52 @@ td{padding:9px 11px;vertical-align:middle;}
   <div class="mf">
     <button class="btn" onclick="closeModal('settingsModal')">Cancel</button>
     <button class="btn btn-p" onclick="saveSettings()">Save</button>
+  </div>
+ </div>
+</div>
+
+<!-- SYNC MODAL -->
+<div class="mbg" id="syncModal">
+ <div class="modal">
+  <div class="mh">
+    <h3>Sync</h3>
+    <button class="btn btn-ic" onclick="closeModal('syncModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb" id="syncModalBody"></div>
+ </div>
+</div>
+
+<!-- SYNC MERGE MODAL -->
+<div class="mbg" id="syncMergeModal">
+ <div class="modal sm">
+  <div class="mh">
+    <h3>Sync conflict</h3>
+    <button class="btn btn-ic" onclick="closeModal('syncMergeModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb">
+    <p id="syncMergeMsg" style="color:var(--text2);line-height:1.6;font-size:13px;"></p>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('syncMergeModal')">Cancel</button>
+    <button class="btn" id="smMergeBtn">Merge</button>
+    <button class="btn btn-d" id="smReplaceBtn">Replace local</button>
+  </div>
+ </div>
+</div>
+
+<!-- SYNC PUSH CONFLICT MODAL -->
+<div class="mbg" id="syncPushModal">
+ <div class="modal sm">
+  <div class="mh">
+    <h3>Cloud is newer</h3>
+    <button class="btn btn-ic" onclick="closeModal('syncPushModal')"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mb">
+    <p style="color:var(--text2);line-height:1.6;font-size:13px;">Cloud data was updated more recently than your last push. Pushing now will overwrite the cloud with your local data.</p>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('syncPushModal')">Cancel</button>
+    <button class="btn btn-d" id="syncPushForceBtn">Overwrite cloud</button>
   </div>
  </div>
 </div>
@@ -1016,7 +1064,189 @@ function toast(msg,type=''){
   setTimeout(()=>t.remove(),2800);
 }
 
-load();renderAll();
+// ══════ SYNC ══════
+const SYNC_BASE='https://ctt-sync-worker.johncat.workers.dev';
+const SYNK='ctt_sync';
+
+function loadSync(){try{return JSON.parse(localStorage.getItem(SYNK)||'null');}catch{return null;}}
+function saveSync(c){localStorage.setItem(SYNK,JSON.stringify(c));}
+
+function b64uEnc(buf){let s='';new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');}
+function b64uDec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0)).buffer;}
+async function aesKey(b64,u){return crypto.subtle.importKey('raw',b64uDec(b64),{name:'AES-GCM'},false,u);}
+async function encryptBlob(obj,k){
+  const key=await aesKey(k,['encrypt']);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  const out=new Uint8Array(12+ct.byteLength);out.set(iv);out.set(new Uint8Array(ct),12);
+  return out.buffer;
+}
+async function decryptBlob(buf,k){
+  const key=await aesKey(k,['decrypt']);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(buf,0,12)},key,new Uint8Array(buf,12));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function genSyncCode(){
+  const chars='abcdefghijklmnopqrstuvwxyz0123456789';
+  const syncId=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>chars[b%36]).join('');
+  const encKey=b64uEnc(crypto.getRandomValues(new Uint8Array(32)).buffer);
+  const code=`CTT-${syncId}-${encKey}`;
+  const cfg={code,syncId,encKey,lastSyncedAt:0};
+  saveSync(cfg);return cfg;
+}
+function parseSyncCode(raw){
+  const m=raw.trim().match(/^CTT-([a-z0-9]{16})-([A-Za-z0-9_-]{40,})$/);
+  if(!m)throw new Error('Invalid code');
+  return{syncId:m[1],encKey:m[2]};
+}
+
+function renderSyncBtns(){
+  const cfg=loadSync();
+  document.getElementById('syncBtns').innerHTML=cfg
+    ?`<button class="btn" onclick="syncPull()" title="Pull from cloud"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>↓ Pull</button>
+      <button class="btn" onclick="syncPush()" title="Push to cloud"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>↑ Push</button>
+      <button class="btn btn-ic" onclick="openSyncModal()" title="Sync settings"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>`
+    :`<button class="btn" onclick="openSyncModal()"><svg class="ic" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>Set up Sync</button>`;
+}
+
+let _qrDone=false;
+function openSyncModal(){_qrDone=false;renderSyncModalBody();openModal('syncModal');}
+function renderSyncModalBody(){
+  const cfg=loadSync(),b=document.getElementById('syncModalBody');
+  if(cfg){
+    b.innerHTML=`
+      <div>
+        <div class="fl">Your sync code</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:9px 11px;font-size:11px;word-break:break-all;line-height:1.7;color:var(--accent);user-select:all">${esc(cfg.code)}</div>
+        <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;">
+          <button class="btn btn-sm" onclick="copySyncCode()">Copy code</button>
+          <button class="btn btn-sm" id="qrToggleBtn" onclick="toggleQR()">Show QR</button>
+        </div>
+        <div id="qrBox" style="display:none;margin-top:10px;justify-content:center;padding:12px;background:#fff;border-radius:var(--radius);"></div>
+      </div>
+      <div class="div"></div>
+      <div>
+        <div class="fl">Link another device — paste its code here</div>
+        <input type="text" id="linkInput" placeholder="CTT-...">
+        <button class="btn btn-sm" style="margin-top:6px" onclick="linkDevice()">Link device</button>
+      </div>
+      <div class="div"></div>
+      <button class="btn btn-sm btn-d" onclick="resetSync()">Reset sync</button>`;
+  } else {
+    b.innerHTML=`
+      <p style="color:var(--text2);line-height:1.6;font-size:13px;">Sync your data across devices using a pairing code. No account needed — everything is encrypted in your browser before it leaves.</p>
+      <div class="div"></div>
+      <button class="btn btn-p" onclick="setupSync()">Generate sync code</button>
+      <div class="div"></div>
+      <div>
+        <div class="fl">Already have a code? Link this device</div>
+        <input type="text" id="linkInput" placeholder="CTT-...">
+        <button class="btn btn-sm" style="margin-top:6px" onclick="linkDevice()">Link device</button>
+      </div>`;
+  }
+}
+function setupSync(){genSyncCode();renderSyncModalBody();renderSyncBtns();toast('Sync code generated','ok');}
+function copySyncCode(){const c=loadSync();if(c)navigator.clipboard.writeText(c.code).then(()=>toast('Copied!','ok'));}
+function toggleQR(){
+  const box=document.getElementById('qrBox'),btn=document.getElementById('qrToggleBtn');
+  if(!box)return;
+  const visible=box.style.display==='flex';
+  if(!visible){
+    if(!_qrDone){box.innerHTML='';new QRCode(box,{text:loadSync().code,width:160,height:160,colorDark:'#000000',colorLight:'#ffffff'});_qrDone=true;}
+    box.style.display='flex';btn.textContent='Hide QR';
+  } else {
+    box.style.display='none';btn.textContent='Show QR';
+  }
+}
+function resetSync(){
+  if(!confirm('This removes the sync code from this device only. Cloud data stays intact. Continue?'))return;
+  localStorage.removeItem(SYNK);renderSyncBtns();renderSyncModalBody();toast('Sync reset','ok');
+}
+
+function showMergeModal(msg,onMerge,onReplace){
+  document.getElementById('syncMergeMsg').textContent=msg;
+  document.getElementById('smMergeBtn').onclick=onMerge;
+  document.getElementById('smReplaceBtn').onclick=onReplace;
+  openModal('syncMergeModal');
+}
+function applyPull(payload,cfg,replace){
+  if(replace){
+    data=payload.apps||[];
+    saveCI(payload.checkins||{});
+  } else {
+    const ex=new Set(data.map(d=>d.id));
+    (payload.apps||[]).forEach(e=>{if(!ex.has(e.id))data.push(e);});
+    const ci=loadCI();
+    for(const[id,dates] of Object.entries(payload.checkins||{})){if(!ci[id])ci[id]={};Object.assign(ci[id],dates);}
+    saveCI(ci);
+  }
+  save();
+  cfg.lastSyncedAt=payload.syncedAt||Date.now();
+  saveSync(cfg);
+  closeModal('syncMergeModal');closeModal('syncModal');
+  renderAll();renderSyncBtns();
+  toast(replace?'Replaced with cloud data':'Merged with cloud data','ok');
+}
+async function linkDevice(){
+  const raw=(document.getElementById('linkInput')?.value||'').trim();
+  let parsed;try{parsed=parseSyncCode(raw);}catch{toast('Invalid sync code','err');return;}
+  let cloud=null;
+  try{
+    const r=await fetch(`${SYNC_BASE}/sync/${parsed.syncId}`);
+    if(r.ok)cloud=await decryptBlob(await r.arrayBuffer(),parsed.encKey);
+  }catch{toast('Could not reach sync server','err');return;}
+  const cfg={code:raw,syncId:parsed.syncId,encKey:parsed.encKey,lastSyncedAt:0};
+  if(cloud&&data.length){
+    showMergeModal(`You have ${data.length} local app${data.length===1?'':'s'} and cloud data exists. What would you like to do?`,
+      ()=>applyPull(cloud,cfg,false),()=>applyPull(cloud,cfg,true));
+  } else if(cloud){
+    applyPull(cloud,cfg,true);
+  } else {
+    saveSync(cfg);renderSyncBtns();renderSyncModalBody();toast('Device linked — no cloud data yet','ok');
+  }
+}
+
+async function syncPull(){
+  const cfg=loadSync();if(!cfg){toast('Sync not configured','err');return;}
+  let cloud;
+  try{
+    const r=await fetch(`${SYNC_BASE}/sync/${cfg.syncId}`);
+    if(!r.ok){toast('No cloud data found','err');return;}
+    cloud=await decryptBlob(await r.arrayBuffer(),cfg.encKey);
+  }catch{toast('Pull failed','err');return;}
+  if(data.length){
+    showMergeModal(`You have ${data.length} local app${data.length===1?'':'s'}. Merge or replace local with cloud?`,
+      ()=>applyPull(cloud,cfg,false),()=>applyPull(cloud,cfg,true));
+  } else {
+    applyPull(cloud,cfg,true);
+  }
+}
+async function syncPush(){
+  const cfg=loadSync();if(!cfg){toast('Sync not configured','err');return;}
+  try{
+    const r=await fetch(`${SYNC_BASE}/sync/${cfg.syncId}`);
+    if(r.ok){
+      const cloud=await decryptBlob(await r.arrayBuffer(),cfg.encKey);
+      if((cloud.syncedAt||0)>(cfg.lastSyncedAt||0)){
+        document.getElementById('syncPushForceBtn').onclick=()=>{closeModal('syncPushModal');doPush(cfg);};
+        openModal('syncPushModal');return;
+      }
+    }
+  }catch{}
+  doPush(cfg);
+}
+async function doPush(cfg){
+  const payload={apps:data,checkins:loadCI(),syncedAt:Date.now()};
+  try{
+    const r=await fetch(`${SYNC_BASE}/sync/${cfg.syncId}`,{method:'PUT',body:await encryptBlob(payload,cfg.encKey)});
+    if(!r.ok)throw new Error();
+    cfg.lastSyncedAt=payload.syncedAt;saveSync(cfg);
+    toast('Pushed to cloud ✓','ok');
+  }catch{toast('Push failed','err');}
+}
+
+load();renderAll();renderSyncBtns();
 </script>
 </body>
 </html>
